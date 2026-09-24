@@ -62,6 +62,22 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 
 
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+COPY prisma/postgres ./prisma/postgres
+COPY prisma/seed.ts ./prisma/seed.ts
+COPY src ./src
+COPY tsconfig.json ./tsconfig.json
+COPY scripts/telegram ./scripts/telegram
+COPY scripts/ops/bootstrap-admin.ts ./scripts/ops/bootstrap-admin.ts
+COPY docker/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x docker-entrypoint.sh
+USER bun
+EXPOSE 3000
+ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["bun", "server.js"]
 
 
 # Production node_modules FIRST (prisma engines + CLI for migrate deploy),
