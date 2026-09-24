@@ -13,6 +13,8 @@
 # see DEPLOYMENT.md §Migrations).
 
 
+
+
 # ── deps: build-time toolchain ───────────────────────────────────────────────
 FROM oven/bun:1 AS deps
 WORKDIR /app
@@ -22,6 +24,8 @@ RUN bun install --frozen-lockfile \
   && bunx prisma generate --schema prisma/postgres/schema.prisma
 
 
+
+
 # ── prod-deps: runtime node_modules (postgres client + engines) ─────────────
 FROM oven/bun:1 AS prod-deps
 WORKDIR /app
@@ -29,6 +33,8 @@ COPY package.json bun.lock ./
 COPY prisma/postgres ./prisma/postgres
 RUN bun install --frozen-lockfile --production \
   && bunx prisma generate --schema prisma/postgres/schema.prisma
+
+
 
 
 # ── build: compile the standalone server ─────────────────────────────────────
@@ -46,6 +52,8 @@ COPY . .
 RUN DATABASE_URL="file:./build-placeholder.db" bun run build
 
 
+
+
 # ── runner: minimal production runtime ───────────────────────────────────────
 FROM oven/bun:1 AS runner
 WORKDIR /app
@@ -54,17 +62,13 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 
 
+
+
 # Production node_modules FIRST (prisma engines + CLI for migrate deploy),
 # then the standalone server overlays its traced subset.
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
-COPY --from=build /app/public ./public
-COPY prisma/postgres ./prisma/postgres
-COPY docker/docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x docker-entrypoint.sh
-
-
-# Drop privileges — the app never writes to the filesystem at runtime.
-USER bun
-
+EXPOSE 3000
+ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["bun", "server.js"]
